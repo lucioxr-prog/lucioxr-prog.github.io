@@ -1,0 +1,980 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Vault SintesiDigitale</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="/vault-icon/icon-32.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/vault-icon/icon-180.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Vault">
+  <style>
+    :root{
+      --bg:#0f1419; --panel:#1a212b; --panel-2:#212a36; --border:#2f3b48;
+      --text:#e6edf3; --text-dim:#8b98a5;
+      --accent:#5b9bd5; --accent-hover:#79b0e0;
+      --danger:#e0615a; --danger-hover:#ea7a73; --success:#4cbb87;
+      --focus:#f4c542; --input-bg:#11161d;
+    }
+    *{box-sizing:border-box;}
+    body{
+      font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;
+      margin:0; background:var(--bg); color:var(--text);
+    }
+    html, body{height:100%;}
+    .wrap{max-width:1100px; margin:0 auto; padding:24px;}
+    h1{font-size:20px; color:#ff8c42; margin:0 0 4px;}
+    .sub{color:var(--text-dim); font-size:13px; margin-bottom:24px;}
+
+    #loginBox{
+      max-width:380px; margin:80px auto; background:var(--panel); padding:32px;
+      border-radius:10px; border:1px solid var(--border);
+      box-shadow:0 4px 20px rgba(0,0,0,.4); text-align:center;
+    }
+    #loginBox .icon{font-size:36px; margin-bottom:8px;}
+    #loginBox input{
+      width:100%; padding:12px; font-size:22px; text-align:center; letter-spacing:4px;
+      border:1px solid var(--border); border-radius:6px; margin:16px 0 8px;
+      background:var(--input-bg); color:var(--text);
+    }
+    #loginBox input:focus{outline:none; border-color:var(--focus); box-shadow:0 0 0 2px rgba(244,197,66,.25);}
+
+    .btn{
+      background:var(--accent); color:#0c1116; border:none; padding:10px 18px;
+      border-radius:6px; cursor:pointer; font-size:14px; font-weight:600;
+    }
+    .btn:hover{background:var(--accent-hover);}
+    .btn.secondary{background:transparent; color:var(--accent); border:1px solid var(--accent);}
+    .btn.secondary:hover{background:rgba(91,155,213,.12);}
+    .btn.danger{background:var(--danger); color:#1a0d0c;}
+    .btn.danger:hover{background:var(--danger-hover);}
+    .btn.small{padding:5px 10px; font-size:12px; border-radius:4px;}
+    .btn:disabled{opacity:.4; cursor:not-allowed;}
+    #loginError{color:var(--danger); font-size:13px; min-height:18px; margin-top:4px;}
+
+    #app.wrap{
+      display:none; flex-direction:column; height:100vh; height:100dvh; overflow:hidden; box-sizing:border-box;
+    }
+    .topbar{display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex:0 0 auto;}
+    #app > #unsavedBanner, #app > .tabs{flex:0 0 auto;}
+    .toolbar{display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap; align-items:center; flex:0 0 auto;}
+    .toolbar .spacer{flex:1;}
+    .tabs{display:flex; gap:4px; margin-bottom:0; border-bottom:2px solid var(--border); flex-wrap:wrap;}
+    .tab{
+      display:flex; align-items:center; gap:6px;
+      padding:8px 10px 8px 14px; cursor:pointer; border-radius:6px 6px 0 0; font-size:13px;
+      background:var(--panel-2); color:var(--text-dim);
+    }
+    .tab.active{background:var(--panel); color:var(--accent); font-weight:600; border:1px solid var(--border); border-bottom:none;}
+    .tab-action{font-size:12px; color:var(--text-dim); padding:0 3px; cursor:pointer; line-height:1;}
+    .tab-action:hover{color:var(--danger);}
+    .tab.tab-add{background:transparent; color:var(--accent); border:1px dashed var(--border); padding:8px 14px;}
+    .tab.tab-add:hover{background:rgba(91,155,213,.10);}
+
+    .panel{
+      background:var(--panel); border:1px solid var(--border); border-top:none; padding:18px;
+      border-radius:0 0 8px 8px; flex:1 1 auto; display:flex; flex-direction:column; min-height:0; overflow:hidden;
+    }
+    table.grid{border-collapse:collapse; min-width:100%; table-layout:fixed; font-size:13px;}
+    table.grid th, table.grid td{border:1px solid var(--border); padding:0; vertical-align:top; overflow:hidden;}
+    table.grid th{background:var(--panel-2); position:relative;}
+    #tableHost{flex:1 1 auto; min-height:0; overflow:hidden;}
+    .table-scroll{height:100%; overflow:auto; border-radius:6px; -webkit-overflow-scrolling:touch;}
+    @keyframes flashNewRow{ 0%{background:rgba(244,197,66,.55);} 100%{background:transparent;} }
+    tr.flash-new td, th.flash-new{animation:flashNewRow 1.6s ease-out;}
+    table.grid thead th{position:sticky; top:0; z-index:5;}
+    table.grid input, table.grid textarea{
+      width:100%; border:none; padding:7px 8px; font-size:13px; background:transparent; color:var(--text);
+      font-family:inherit; display:block; box-sizing:border-box;
+    }
+    table.grid textarea{resize:none; overflow:hidden; white-space:pre-wrap; word-break:break-word; line-height:1.4;}
+    table.grid input:focus, table.grid textarea:focus{background:rgba(244,197,66,.10); outline:1px solid var(--focus);}
+    table.grid th input{font-weight:600; color:var(--accent);}
+    table.grid input.is-bold, table.grid textarea.is-bold{font-weight:700;}
+    .col-resizer{
+      position:absolute; top:0; right:-3px; width:7px; height:100%; cursor:col-resize; z-index:6; user-select:none;
+    }
+    .col-resizer:hover{background:rgba(244,197,66,.45);}
+    .col-del, .row-del{
+      background:none; border:none; color:var(--danger); cursor:pointer; font-size:13px; padding:2px 6px;
+    }
+    .bold-toggle{
+      background:none; border:1px solid var(--border); color:var(--text-dim);
+      cursor:pointer; font-size:11px; font-weight:700; padding:1px 6px; border-radius:3px; margin:0 4px 4px 4px;
+    }
+    .bold-toggle:hover{color:var(--accent); border-color:var(--accent);}
+    .bold-toggle.active{background:var(--accent); color:#0c1116; border-color:var(--accent);}
+    .row-num{color:var(--text-dim); font-size:11px; text-align:center; width:70px; background:var(--panel-2);}
+    .ins-btn{
+      background:none; border:1px solid var(--border); color:var(--success);
+      cursor:pointer; font-size:13px; font-weight:700; padding:1px 6px; border-radius:3px; margin:2px 2px 4px 2px;
+    }
+    .ins-btn:hover{background:var(--success); color:#0c1116; border-color:var(--success);}
+    .actions-row{margin-top:14px; display:flex; gap:8px; align-items:center;}
+    .saveMsg{font-size:13px; margin-left:8px;}
+    .saveMsg.ok{color:var(--success);}
+    .saveMsg.err{color:var(--danger);}
+
+    #unsavedBanner{
+      display:none; background:#3a2f12; border:1px solid #6b5a1f; color:var(--focus);
+      padding:9px 14px; border-radius:6px; font-size:13px; margin-bottom:14px;
+      align-items:center; gap:10px;
+    }
+    #unsavedBanner.show{display:flex;}
+    #unsavedBanner .dot{width:8px; height:8px; border-radius:50%; background:var(--focus); flex-shrink:0;}
+    #unsavedBanner button{margin-left:auto;}
+
+    .ctx-menu{
+      position:fixed; display:none; z-index:100; background:var(--panel);
+      border:1px solid var(--border); border-radius:6px; box-shadow:0 6px 20px rgba(0,0,0,.5);
+      min-width:210px; overflow:hidden;
+    }
+    .ctx-item{padding:9px 14px; font-size:13px; color:var(--text); cursor:pointer;}
+    .ctx-item:hover{background:var(--panel-2); color:var(--accent);}
+
+    #reauthOverlay, #importOverlay{
+      display:none; position:fixed; inset:0; background:rgba(0,0,0,.65);
+      align-items:center; justify-content:center; z-index:50;
+    }
+    #reauthBox{background:var(--panel); border:1px solid var(--border); padding:26px; border-radius:10px; width:300px; text-align:center;}
+    #reauthBox input{
+      width:100%; padding:10px; font-size:20px; text-align:center; letter-spacing:3px; margin:12px 0;
+      border:1px solid var(--border); border-radius:6px; background:var(--input-bg); color:var(--text);
+    }
+
+    #importBox{background:var(--panel); border:1px solid var(--border); padding:24px; border-radius:10px; width:560px; max-width:92vw;}
+    #importBox h3{margin:0 0 6px; color:var(--text); font-size:16px;}
+    #importBox .hint{font-size:12px; color:var(--text-dim); margin:0 0 10px; line-height:1.5;}
+    #importTextarea{
+      width:100%; min-height:170px; font-family:ui-monospace,monospace; font-size:12px;
+      border:1px solid var(--border); border-radius:6px; padding:8px; resize:vertical;
+      background:var(--input-bg); color:var(--text);
+    }
+    #importTextarea:focus{outline:none; border-color:var(--focus);}
+    #importBox .checkrow{font-size:13px; margin-top:12px; color:var(--text);}
+    #importBox .radiorow{font-size:13px; margin-top:10px; display:flex; flex-direction:column; gap:8px; color:var(--text);}
+    #importBox .radiorow .opthint{color:var(--text-dim); font-size:11px; margin-left:22px;}
+    #importBox .importActions{margin-top:18px; display:flex; justify-content:flex-end; gap:8px;}
+    #importError{color:var(--danger); font-size:12px; min-height:16px; margin-top:6px;}
+
+    #printArea{display:none;}
+    @media print{
+      html, body{background:#fff !important;}
+      body *{visibility:hidden;}
+      #printArea, #printArea *{visibility:visible; color:#000 !important;}
+      #printArea{display:block !important; position:absolute; top:0; left:0; width:100%; background:#fff !important;}
+      #printArea h2{color:#000 !important;}
+      #printArea table{width:100%; border-collapse:collapse;}
+      #printArea th, #printArea td{border:1px solid #999 !important; padding:6px; font-size:12px; text-align:left; background:#fff !important;}
+      #printArea th{background:#eee !important;}
+    }
+  </style>
+</head>
+<body>
+
+  <div id="loginBox">
+    <div class="icon">&#128274;</div>
+    <h1>Vault SintesiDigitale</h1>
+    <div class="sub">Inserisci il codice a 6 cifre da Authy</div>
+    <form id="loginForm" onsubmit="return false;">
+      <input id="otpInput" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="------" autofocus>
+      <button class="btn" style="width:100%" onclick="submitOtp()">Sblocca</button>
+    </form>
+    <div id="loginError"></div>
+    <div style="margin-top:14px;">
+      <a href="#" onclick="cambiaApiUrl(); return false;" style="color:var(--text-dim); font-size:11px;">Cambia URL del Vault</a>
+    </div>
+  </div>
+
+  <div id="app" class="wrap">
+    <div class="topbar">
+      <div>
+        <h1>Vault SintesiDigitale</h1>
+        <div class="sub">Sessione attiva - i dati restano cifrati su Drive, decifrati solo qui.</div>
+      </div>
+      <button class="btn danger small" onclick="lockNow()" title="Chiudi la sessione e torna al login">Esci</button>
+    </div>
+
+    <div id="unsavedBanner">
+      <span class="dot"></span>
+      <span id="unsavedText"></span>
+      <button class="btn small" onclick="saveFoglio()">Salva ora</button>
+    </div>
+
+    <div class="tabs" id="tabsBar"></div>
+    <div class="panel">
+      <div class="toolbar">
+        <button class="btn secondary small" id="undoBtn" onclick="undo()" title="Annulla ultima modifica">&#9664; Annulla</button>
+        <button class="btn secondary small" id="redoBtn" onclick="redo()" title="Ripeti modifica annullata">Ripeti &#9654;</button>
+        <button class="btn secondary small" onclick="addRow()">+ Riga</button>
+        <button class="btn secondary small" onclick="addColumn()">+ Colonna</button>
+        <button class="btn secondary small" onclick="openImport()">Importa da Excel</button>
+        <span class="spacer"></span>
+        <button class="btn secondary small" onclick="printFoglio()">Stampa questo foglio</button>
+        <button class="btn secondary small" onclick="printAll()">Stampa tutti i fogli</button>
+        <button class="btn small" onclick="saveFoglio()">Salva modifiche</button>
+      </div>
+      <div id="tableHost"></div>
+      <div class="actions-row">
+        <span id="saveMsg" class="saveMsg"></span>
+      </div>
+    </div>
+  </div>
+
+  <div id="reauthOverlay">
+    <div id="reauthBox">
+      <div style="font-size:28px;">&#128274;</div>
+      <div style="margin:6px 0 0; font-weight:600;">Sessione scaduta</div>
+      <div style="font-size:13px; color:var(--text-dim);">Reinserisci il codice OTP per continuare</div>
+      <input id="reauthInput" inputmode="numeric" maxlength="6" autocomplete="one-time-code">
+      <div id="reauthError" style="color:var(--danger); font-size:12px; min-height:16px;"></div>
+      <button class="btn" style="width:100%" onclick="submitReauth()">Conferma</button>
+    </div>
+  </div>
+
+  <div id="importOverlay">
+    <div id="importBox">
+      <h3>Importa da Excel / CSV</h3>
+      <p class="hint">
+        Apri il file in Excel (o Google Sheets), seleziona le celle che vuoi importare
+        (anche con le intestazioni), copia con <strong>Cmd+C</strong> e incolla qui sotto con <strong>Cmd+V</strong>.
+      </p>
+      <textarea id="importTextarea" placeholder="Incolla qui le celle copiate da Excel..."></textarea>
+      <label class="checkrow">
+        <input type="checkbox" id="importHasHeader" checked> La prima riga incollata contiene le intestazioni delle colonne
+      </label>
+      <div class="radiorow">
+        <label><input type="radio" name="importMode" value="replace" checked> Sostituisci tutto il foglio</label>
+        <label><input type="radio" name="importMode" value="column"> Aggiungi come nuova colonna</label>
+        <div class="opthint">Usa questa se hai gia' importato una colonna e vuoi aggiungerne un'altra a fianco (le righe si allineano per posizione).</div>
+        <label><input type="radio" name="importMode" value="append"> Aggiungi come nuove righe</label>
+      </div>
+      <div id="importError"></div>
+      <div class="importActions">
+        <button class="btn secondary small" onclick="closeImport()">Annulla</button>
+        <button class="btn small" onclick="eseguiImport()">Importa</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="ctxMenu" class="ctx-menu"></div>
+
+  <div id="printArea"></div>
+
+  <script>
+    // -----------------------------------------------------------------------
+    // Pagina statica (nessun Google chrome): parla col backend Apps Script
+    // via fetch() invece di google.script.run. Content-Type text/plain per
+    // evitare il preflight CORS (Apps Script non implementa doOptions).
+    // -----------------------------------------------------------------------
+    const API_URL_KEY = 'vaultApiUrl';
+    function getApiUrl() {
+      let url = '';
+      try { url = localStorage.getItem(API_URL_KEY) || ''; } catch (e) {}
+      if (!url) url = chiediApiUrl();
+      return url;
+    }
+    function chiediApiUrl() {
+      const url = (prompt("Incolla l'URL del Vault (quello che finisce con /exec):", '') || '').trim();
+      if (url) { try { localStorage.setItem(API_URL_KEY, url); } catch (e) {} }
+      return url;
+    }
+    function cambiaApiUrl() {
+      try { localStorage.removeItem(API_URL_KEY); } catch (e) {}
+      chiediApiUrl();
+    }
+    function callApi(action, args) {
+      const url = getApiUrl();
+      if (!url) return Promise.resolve({ ok: false, error: 'URL del Vault non configurato.' });
+      return fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: action, args: args || [] })
+      }).then(function(r){ return r.json(); })
+        .catch(function(err){ return { ok: false, error: 'Errore di rete: ' + err.message }; });
+    }
+
+    let sessionToken = null;
+    let fogli = [];
+    let activeTab = 0;
+    let pendingAction = null;
+    let foglioModificato = [];
+    let historyUndo = [];
+    let historyRedo = [];
+
+    // ---------------------------------------------------------------------
+    // Modello cella: { v: 'testo', b: true/false }. wrapCell()/normalizeFoglio()
+    // garantiscono compatibilita' con dati vecchi salvati come semplice stringa.
+    // ---------------------------------------------------------------------
+    function wrapCell(v) { return { v: (v !== undefined && v !== null) ? v : '', b: false }; }
+
+    function normalizeFoglio(f) {
+      f.rows = (f.rows || []).map(function(row){
+        return f.headers.map(function(_, c){
+          const cell = row[c];
+          if (cell && typeof cell === 'object' && 'v' in cell) return { v: cell.v, b: !!cell.b };
+          return wrapCell(cell);
+        });
+      });
+      loadColWidths(f);
+      return f;
+    }
+
+    // ---------------------------------------------------------------------
+    // Larghezza colonne: preferenza di visualizzazione per-browser (non e'
+    // un dato del vault, non viene mai inviata al server né cifrata).
+    // ---------------------------------------------------------------------
+    function loadColWidths(f) {
+      try {
+        const raw = localStorage.getItem('vaultColW_' + f.nome);
+        f.colWidths = raw ? JSON.parse(raw) : [];
+      } catch (e) { f.colWidths = []; }
+    }
+    function saveColWidths(f) {
+      try { localStorage.setItem('vaultColW_' + f.nome, JSON.stringify(f.colWidths || [])); } catch (e) {}
+    }
+
+    document.getElementById('otpInput').addEventListener('keydown', function(e){
+      if (e.key === 'Enter') submitOtp();
+    });
+    document.getElementById('reauthInput').addEventListener('keydown', function(e){
+      if (e.key === 'Enter') submitReauth();
+    });
+
+    function submitOtp() {
+      const code = document.getElementById('otpInput').value.trim();
+      const errBox = document.getElementById('loginError');
+      errBox.textContent = '';
+      if (!/^[0-9]{6}$/.test(code)) { errBox.textContent = 'Inserisci 6 cifre.'; return; }
+      callApi('verifyOtpAndLoad', [code]).then(function(res){
+        if (res.ok) {
+          sessionToken = res.sessionToken;
+          fogli = res.fogli.map(normalizeFoglio);
+          foglioModificato = fogli.map(function(){ return false; });
+          historyUndo = fogli.map(function(){ return []; });
+          historyRedo = fogli.map(function(){ return []; });
+          activeTab = 0;
+          document.getElementById('loginBox').style.display = 'none';
+          document.getElementById('app').style.display = 'flex';
+          renderTabs();
+          renderTable();
+          updateUnsavedBanner();
+          updateUndoRedoButtons();
+        } else {
+          errBox.textContent = res.error || 'Errore.';
+        }
+      });
+    }
+
+    // ---------------------------------------------------------------------
+    // Modifiche non salvate: banner + blocco beforeunload
+    // ---------------------------------------------------------------------
+    function markModificato(idx) {
+      foglioModificato[idx] = true;
+      updateUnsavedBanner();
+    }
+
+    function updateUnsavedBanner() {
+      const banner = document.getElementById('unsavedBanner');
+      const names = [];
+      foglioModificato.forEach(function(v, i){ if (v && fogli[i]) names.push(fogli[i].nome); });
+      if (names.length === 0) {
+        banner.classList.remove('show');
+      } else {
+        document.getElementById('unsavedText').textContent = 'Modifiche non salvate: ' + names.join(', ');
+        banner.classList.add('show');
+      }
+    }
+
+    function haModificheNonSalvate() {
+      return foglioModificato.some(function(v){ return v; });
+    }
+
+    window.addEventListener('beforeunload', function(e){
+      if (haModificheNonSalvate()) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    });
+
+    function renderTabs() {
+      const bar = document.getElementById('tabsBar');
+      bar.innerHTML = '';
+      fogli.forEach(function(f, idx){
+        const tab = document.createElement('div');
+        tab.className = 'tab' + (idx === activeTab ? ' active' : '');
+
+        const label = document.createElement('span');
+        label.textContent = f.nome;
+        label.onclick = function(){ activeTab = idx; renderTabs(); renderTable(); updateUndoRedoButtons(); };
+        tab.appendChild(label);
+
+        const renameBtn = document.createElement('span');
+        renameBtn.className = 'tab-action';
+        renameBtn.textContent = '\u270E';
+        renameBtn.title = 'Rinomina foglio';
+        renameBtn.onclick = function(e){ e.stopPropagation(); rinominaFoglioUI(idx); };
+        tab.appendChild(renameBtn);
+
+        if (fogli.length > 1) {
+          const delBtn = document.createElement('span');
+          delBtn.className = 'tab-action';
+          delBtn.textContent = '\u00D7';
+          delBtn.title = 'Elimina foglio';
+          delBtn.onclick = function(e){ e.stopPropagation(); eliminaFoglioUI(idx); };
+          tab.appendChild(delBtn);
+        }
+        bar.appendChild(tab);
+      });
+
+      const addTab = document.createElement('div');
+      addTab.className = 'tab tab-add';
+      addTab.textContent = '+ Nuovo foglio';
+      addTab.onclick = aggiungiFoglioUI;
+      bar.appendChild(addTab);
+    }
+
+    function rinominaFoglioUI(idx) {
+      const nuovo = prompt('Nuovo nome per "' + fogli[idx].nome + '":', fogli[idx].nome);
+      if (!nuovo || !nuovo.trim()) return;
+      doRinomina(idx, nuovo.trim());
+    }
+    function doRinomina(idx, nuovo) {
+      const nomeAttuale = fogli[idx].nome;
+      callApi('rinominaFoglio', [sessionToken, nomeAttuale, nuovo]).then(function(res){
+        if (res.ok) { fogli[idx].nome = nuovo; renderTabs(); updateUnsavedBanner(); }
+        else if (res.error && res.error.indexOf('scadut') !== -1) { openReauth(function(){ doRinomina(idx, nuovo); }); }
+        else { alert(res.error || 'Errore.'); }
+      });
+    }
+
+    function aggiungiFoglioUI() {
+      const nome = prompt('Nome del nuovo foglio:', 'Foglio' + (fogli.length + 1));
+      if (!nome || !nome.trim()) return;
+      doAggiungiFoglio(nome.trim());
+    }
+    function doAggiungiFoglio(nome) {
+      callApi('aggiungiFoglio', [sessionToken, nome]).then(function(res){
+        if (res.ok) {
+          fogli.push(normalizeFoglio({ nome: res.nome, headers: res.headers, rows: res.rows }));
+          foglioModificato.push(false);
+          historyUndo.push([]);
+          historyRedo.push([]);
+          activeTab = fogli.length - 1;
+          renderTabs(); renderTable(); updateUnsavedBanner(); updateUndoRedoButtons();
+        } else if (res.error && res.error.indexOf('scadut') !== -1) {
+          openReauth(function(){ doAggiungiFoglio(nome); });
+        } else { alert(res.error || 'Errore.'); }
+      });
+    }
+
+    function eliminaFoglioUI(idx) {
+      if (fogli.length <= 1) { alert('Deve restare almeno un foglio.'); return; }
+      if (!confirm('Eliminare definitivamente il foglio "' + fogli[idx].nome + '" e tutti i suoi dati? Operazione irreversibile.')) return;
+      doEliminaFoglio(idx);
+    }
+    function doEliminaFoglio(idx) {
+      const nomeDaEliminare = fogli[idx].nome;
+      callApi('eliminaFoglio', [sessionToken, nomeDaEliminare]).then(function(res){
+        if (res.ok) {
+          fogli.splice(idx, 1);
+          foglioModificato.splice(idx, 1);
+          historyUndo.splice(idx, 1);
+          historyRedo.splice(idx, 1);
+          if (activeTab >= fogli.length) activeTab = fogli.length - 1;
+          if (activeTab < 0) activeTab = 0;
+          renderTabs(); renderTable(); updateUnsavedBanner(); updateUndoRedoButtons();
+        } else if (res.error && res.error.indexOf('scadut') !== -1) {
+          openReauth(function(){ doEliminaFoglio(idx); });
+        } else { alert(res.error || 'Errore.'); }
+      });
+    }
+
+    // ---------------------------------------------------------------------
+    // Annulla / Ripeti (per-foglio). beginChange() va chiamato PRIMA di ogni
+    // mutazione di headers/rows del foglio attivo.
+    // ---------------------------------------------------------------------
+    function snapshotFoglio(idx) {
+      return {
+        headers: JSON.parse(JSON.stringify(fogli[idx].headers)),
+        rows: JSON.parse(JSON.stringify(fogli[idx].rows))
+      };
+    }
+    function beginChange() {
+      const idx = activeTab;
+      if (!historyUndo[idx]) historyUndo[idx] = [];
+      if (!historyRedo[idx]) historyRedo[idx] = [];
+      historyUndo[idx].push(snapshotFoglio(idx));
+      if (historyUndo[idx].length > 50) historyUndo[idx].shift();
+      historyRedo[idx] = [];
+      updateUndoRedoButtons();
+    }
+    function undo() {
+      const idx = activeTab;
+      if (!historyUndo[idx] || historyUndo[idx].length === 0) return;
+      const current = snapshotFoglio(idx);
+      const prev = historyUndo[idx].pop();
+      if (!historyRedo[idx]) historyRedo[idx] = [];
+      historyRedo[idx].push(current);
+      fogli[idx].headers = prev.headers;
+      fogli[idx].rows = prev.rows;
+      markModificato(idx);
+      renderTable();
+      updateUndoRedoButtons();
+    }
+    function redo() {
+      const idx = activeTab;
+      if (!historyRedo[idx] || historyRedo[idx].length === 0) return;
+      const current = snapshotFoglio(idx);
+      const next = historyRedo[idx].pop();
+      if (!historyUndo[idx]) historyUndo[idx] = [];
+      historyUndo[idx].push(current);
+      fogli[idx].headers = next.headers;
+      fogli[idx].rows = next.rows;
+      markModificato(idx);
+      renderTable();
+      updateUndoRedoButtons();
+    }
+    function updateUndoRedoButtons() {
+      const idx = activeTab;
+      const u = document.getElementById('undoBtn');
+      const r = document.getElementById('redoBtn');
+      if (!u || !r) return;
+      u.disabled = !(historyUndo[idx] && historyUndo[idx].length > 0);
+      r.disabled = !(historyRedo[idx] && historyRedo[idx].length > 0);
+    }
+    document.addEventListener('keydown', function(e){
+      const tag = (e.target && e.target.tagName || '').toLowerCase();
+      if (tag === 'input' || tag === 'textarea') return; // non rubare l'annulla nativo mentre scrivi
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z') {
+        e.preventDefault();
+        if (e.shiftKey) redo(); else undo();
+      }
+    });
+
+    // ---------------------------------------------------------------------
+    // Tabella: render, celle, grassetto, inserimento riga/colonna in mezzo
+    // ---------------------------------------------------------------------
+    function renderTable() {
+      const f = fogli[activeTab];
+      const host = document.getElementById('tableHost');
+      const headers = f.headers, rows = f.rows;
+      if (!f.colWidths) f.colWidths = [];
+
+      const prevScroll = host.querySelector('.table-scroll');
+      const savedScrollTop = prevScroll ? prevScroll.scrollTop : 0;
+      const savedScrollLeft = prevScroll ? prevScroll.scrollLeft : 0;
+
+      let colHtml = '<colgroup><col style="width:70px">';
+      headers.forEach(function(_, c){
+        const w = f.colWidths[c] || 160;
+        colHtml += '<col id="colW_' + c + '" style="width:' + w + 'px">';
+      });
+      colHtml += '</colgroup>';
+
+      let html = '<div class="table-scroll"><table class="grid">' + colHtml + '<thead><tr>' +
+                 '<th class="row-num"><button class="ins-btn" title="Inserisci riga in cima" onclick="insertRowAt(0)">+</button></th>';
+      headers.forEach(function(h, c){
+        html += '<th oncontextmenu="colCtxMenu(event,' + c + ')">' +
+                '<input value="' + escapeAttr(h) + '" onchange="renameHeader(' + c + ',this.value)">' +
+                '<button class="ins-btn" title="Inserisci colonna a destra" onclick="insertColumnAt(' + (c+1) + ')">+</button>' +
+                '<button class="col-del" title="Elimina colonna" onclick="deleteColumn(' + c + ')">x</button>' +
+                '<div class="col-resizer" title="Trascina per ridimensionare" onmousedown="startColResize(event,' + c + ')"></div>' +
+                '</th>';
+      });
+      html += '</tr></thead><tbody>';
+      rows.forEach(function(row, r){
+        html += '<tr><td class="row-num" oncontextmenu="rowCtxMenu(event,' + r + ')">' + (r+1) +
+                '<button class="ins-btn" title="Inserisci riga sotto" onclick="insertRowAt(' + (r+1) + ')">+</button>' +
+                '<button class="row-del" title="Elimina riga" onclick="deleteRow(' + r + ')">x</button></td>';
+        headers.forEach(function(_, c){
+          const cell = row[c] || wrapCell('');
+          const val = cell.v !== undefined ? cell.v : '';
+          const bold = !!cell.b;
+          html += '<td><textarea rows="1" class="' + (bold ? 'is-bold' : '') + '" ' +
+                  'oninput="autoGrow(this)" onchange="setCell(' + r + ',' + c + ',this.value)">' + escapeHtml(val) + '</textarea>' +
+                  '<button class="bold-toggle' + (bold ? ' active' : '') + '" title="Grassetto" ' +
+                  'onclick="toggleBold(' + r + ',' + c + ')">B</button></td>';
+        });
+        html += '</tr>';
+      });
+      html += '</tbody></table></div>';
+      if (rows.length === 0) html += '<p style="color:var(--text-dim); font-size:13px; margin-top:10px;">Nessuna riga. Usa "+ Riga" oppure "Importa da Excel" per iniziare.</p>';
+      host.innerHTML = html;
+      const newScroll = host.querySelector('.table-scroll');
+      if (newScroll) { newScroll.scrollTop = savedScrollTop; newScroll.scrollLeft = savedScrollLeft; }
+      host.querySelectorAll('table.grid textarea').forEach(autoGrow);
+    }
+
+    function escapeAttr(s) {
+      return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+    }
+    function escapeHtml(s) {
+      return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+    function autoGrow(ta) {
+      ta.style.height = 'auto';
+      ta.style.height = ta.scrollHeight + 'px';
+    }
+
+    // ---------------------------------------------------------------------
+    // Resize colonne (drag sul bordo destro dell'intestazione)
+    // ---------------------------------------------------------------------
+    let colResizeState = null;
+    function startColResize(e, c) {
+      e.preventDefault(); e.stopPropagation();
+      const th = e.target.closest('th');
+      colResizeState = { c: c, startX: e.clientX, startWidth: th.offsetWidth };
+      document.addEventListener('mousemove', onColResizeMove);
+      document.addEventListener('mouseup', onColResizeEnd);
+    }
+    function onColResizeMove(e) {
+      if (!colResizeState) return;
+      const f = fogli[activeTab];
+      const newWidth = Math.max(50, colResizeState.startWidth + (e.clientX - colResizeState.startX));
+      if (!f.colWidths) f.colWidths = [];
+      f.colWidths[colResizeState.c] = newWidth;
+      const colEl = document.getElementById('colW_' + colResizeState.c);
+      if (colEl) colEl.style.width = newWidth + 'px';
+    }
+    function onColResizeEnd() {
+      document.removeEventListener('mousemove', onColResizeMove);
+      document.removeEventListener('mouseup', onColResizeEnd);
+      if (colResizeState) saveColWidths(fogli[activeTab]);
+      colResizeState = null;
+    }
+
+    function setCell(r, c, val) {
+      beginChange();
+      fogli[activeTab].rows[r][c].v = val;
+      markModificato(activeTab);
+    }
+    function renameHeader(c, val) {
+      beginChange();
+      fogli[activeTab].headers[c] = val;
+      markModificato(activeTab);
+    }
+    function toggleBold(r, c) {
+      beginChange();
+      const cell = fogli[activeTab].rows[r][c];
+      cell.b = !cell.b;
+      markModificato(activeTab);
+      renderTable();
+    }
+
+    function addRow() {
+      beginChange();
+      const f = fogli[activeTab];
+      f.rows.push(f.headers.map(function(){ return wrapCell(''); }));
+      markModificato(activeTab);
+      renderTable();
+    }
+    function deleteRow(r) {
+      beginChange();
+      fogli[activeTab].rows.splice(r, 1);
+      markModificato(activeTab);
+      renderTable();
+    }
+    function addColumn() {
+      beginChange();
+      const f = fogli[activeTab];
+      f.headers.push('Colonna ' + (f.headers.length + 1));
+      f.rows.forEach(function(row){ row.push(wrapCell('')); });
+      markModificato(activeTab);
+      renderTable();
+    }
+    function deleteColumn(c) {
+      const f = fogli[activeTab];
+      if (f.headers.length <= 1) { alert('Deve restare almeno una colonna.'); return; }
+      beginChange();
+      f.headers.splice(c, 1);
+      f.rows.forEach(function(row){ row.splice(c, 1); });
+      markModificato(activeTab);
+      renderTable();
+    }
+
+    // Inserimento in mezzo (non solo in fondo) via menu contestuale (clic destro)
+    function insertRowAt(idx) {
+      beginChange();
+      const f = fogli[activeTab];
+      const newRow = f.headers.map(function(){ return wrapCell(''); });
+      f.rows.splice(idx, 0, newRow);
+      markModificato(activeTab);
+      renderTable();
+      highlightRow(idx);
+    }
+    function insertColumnAt(idx) {
+      beginChange();
+      const f = fogli[activeTab];
+      let n = f.headers.length + 1, name;
+      do { name = 'Colonna ' + n; n++; } while (f.headers.indexOf(name) !== -1);
+      f.headers.splice(idx, 0, name);
+      f.rows.forEach(function(row){ row.splice(idx, 0, wrapCell('')); });
+      markModificato(activeTab);
+      renderTable();
+      highlightColumn(idx);
+    }
+
+    // Porta in vista (scroll) e fa lampeggiare brevemente la riga/colonna appena creata,
+    // cosi' si vede in modo inequivocabile esattamente dove e' stata inserita.
+    function highlightRow(idx) {
+      const host = document.getElementById('tableHost');
+      const tbody = host.querySelector('table.grid tbody');
+      if (!tbody || !tbody.children[idx]) return;
+      const tr = tbody.children[idx];
+      tr.scrollIntoView({ block: 'center' });
+      tr.classList.add('flash-new');
+      setTimeout(function(){ tr.classList.remove('flash-new'); }, 1600);
+    }
+    function highlightColumn(idx) {
+      const host = document.getElementById('tableHost');
+      const headerRow = host.querySelector('table.grid thead tr');
+      if (!headerRow) return;
+      const th = headerRow.children[idx + 1]; // +1: la prima th e' la colonna dei numeri di riga
+      if (!th) return;
+      th.scrollIntoView({ block: 'nearest', inline: 'center' });
+      th.classList.add('flash-new');
+      setTimeout(function(){ th.classList.remove('flash-new'); }, 1600);
+    }
+
+    function rowCtxMenu(e, r) {
+      e.preventDefault();
+      showCtxMenu(e.clientX, e.clientY, [
+        { label: 'Inserisci riga sopra', action: function(){ insertRowAt(r); } },
+        { label: 'Inserisci riga sotto', action: function(){ insertRowAt(r + 1); } }
+      ]);
+    }
+    function colCtxMenu(e, c) {
+      e.preventDefault();
+      showCtxMenu(e.clientX, e.clientY, [
+        { label: 'Inserisci colonna a sinistra', action: function(){ insertColumnAt(c); } },
+        { label: 'Inserisci colonna a destra', action: function(){ insertColumnAt(c + 1); } }
+      ]);
+    }
+    function showCtxMenu(x, y, items) {
+      const menu = document.getElementById('ctxMenu');
+      menu.innerHTML = '';
+      items.forEach(function(it){
+        const div = document.createElement('div');
+        div.className = 'ctx-item';
+        div.textContent = it.label;
+        div.onclick = function(e){ e.stopPropagation(); hideCtxMenu(); it.action(); };
+        menu.appendChild(div);
+      });
+      const maxX = window.innerWidth - 230, maxY = window.innerHeight - (items.length * 40 + 20);
+      menu.style.left = Math.min(x, Math.max(0, maxX)) + 'px';
+      menu.style.top = Math.min(y, Math.max(0, maxY)) + 'px';
+      menu.style.display = 'block';
+    }
+    function hideCtxMenu() { document.getElementById('ctxMenu').style.display = 'none'; }
+    document.addEventListener('click', hideCtxMenu);
+    document.addEventListener('scroll', hideCtxMenu, true);
+
+    // ---------------------------------------------------------------------
+    // Import da Excel/CSV
+    // ---------------------------------------------------------------------
+    function openImport() {
+      document.getElementById('importTextarea').value = '';
+      document.getElementById('importError').textContent = '';
+      document.getElementById('importOverlay').style.display = 'flex';
+      setTimeout(function(){ document.getElementById('importTextarea').focus(); }, 50);
+    }
+    function closeImport() { document.getElementById('importOverlay').style.display = 'none'; }
+
+    function parseCsvLine(line) {
+      const result = [];
+      let cur = '', inQuotes = false;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (inQuotes) {
+          if (ch === '"') { if (line[i+1] === '"') { cur += '"'; i++; } else { inQuotes = false; } }
+          else cur += ch;
+        } else {
+          if (ch === '"') inQuotes = true;
+          else if (ch === ',') { result.push(cur); cur = ''; }
+          else cur += ch;
+        }
+      }
+      result.push(cur);
+      return result;
+    }
+    function parseImportText(text) {
+      const lines = text.replace(/\r/g, '').split('\n').filter(function(l){ return l.length > 0; });
+      return lines.map(function(line){
+        return line.indexOf('\t') !== -1 ? line.split('\t') : parseCsvLine(line);
+      });
+    }
+
+    function applyImport(f, parsedHeaders, parsedRows, mode) {
+      if (mode === 'replace') {
+        const normRows = parsedRows.map(function(r){
+          const row = [];
+          for (let c = 0; c < parsedHeaders.length; c++) row.push(wrapCell(r[c]));
+          return row;
+        });
+        f.headers = parsedHeaders;
+        f.rows = normRows;
+
+      } else if (mode === 'append') {
+        parsedRows.forEach(function(r){
+          const adapted = f.headers.map(function(_, i){ return wrapCell(r[i]); });
+          f.rows.push(adapted);
+        });
+
+      } else if (mode === 'column') {
+        const originalRowCount = f.rows.length;
+        const newColCount = parsedHeaders.length;
+        const finalRowCount = Math.max(originalRowCount, parsedRows.length);
+
+        for (let r = 0; r < originalRowCount; r++) {
+          for (let c = 0; c < newColCount; c++) {
+            f.rows[r].push(wrapCell(parsedRows[r] !== undefined ? parsedRows[r][c] : undefined));
+          }
+        }
+        for (let r = originalRowCount; r < finalRowCount; r++) {
+          const newRow = f.headers.map(function(){ return wrapCell(''); });
+          for (let c = 0; c < newColCount; c++) {
+            newRow.push(wrapCell(parsedRows[r] !== undefined ? parsedRows[r][c] : undefined));
+          }
+          f.rows.push(newRow);
+        }
+        parsedHeaders.forEach(function(h){ f.headers.push(h); });
+      }
+      return f;
+    }
+
+    function eseguiImport() {
+      const text = document.getElementById('importTextarea').value;
+      const errBox = document.getElementById('importError');
+      errBox.textContent = '';
+      if (!text.trim()) { errBox.textContent = 'Incolla prima dei dati.'; return; }
+
+      const grid = parseImportText(text);
+      if (grid.length === 0) { errBox.textContent = 'Nessuna riga valida trovata.'; return; }
+
+      const hasHeader = document.getElementById('importHasHeader').checked;
+      const mode = document.querySelector('input[name="importMode"]:checked').value;
+      const f = fogli[activeTab];
+
+      let parsedHeaders, parsedRows;
+      if (hasHeader) {
+        parsedHeaders = grid[0];
+        parsedRows = grid.slice(1);
+      } else {
+        const maxCols = Math.max.apply(null, grid.map(function(r){ return r.length; }));
+        const baseIndex = (mode === 'column') ? f.headers.length : 0;
+        parsedHeaders = [];
+        for (let i = 0; i < maxCols; i++) parsedHeaders.push('Colonna ' + (baseIndex + i + 1));
+        parsedRows = grid;
+      }
+
+      if (mode === 'replace' && f.rows.length > 0) {
+        if (!confirm('Questo sovrascrivera\u0300 tutte le righe attuali di questo foglio (non ancora salvate andranno perse). Continuare?')) return;
+      }
+
+      beginChange();
+      applyImport(f, parsedHeaders, parsedRows, mode);
+      markModificato(activeTab);
+      closeImport();
+      renderTable();
+    }
+
+    // ---------------------------------------------------------------------
+    // Salvataggio
+    // ---------------------------------------------------------------------
+    function saveFoglio() {
+      const msg = document.getElementById('saveMsg');
+      msg.textContent = 'Salvataggio...'; msg.className = 'saveMsg';
+      const f = fogli[activeTab];
+      const idx = activeTab;
+      const nomeFoglio = f.nome;
+      callApi('salvaFoglio', [sessionToken, nomeFoglio, f.headers, f.rows]).then(function(res){
+        if (res.ok) {
+          msg.textContent = 'Salvato e ricifrato'; msg.className = 'saveMsg ok';
+          foglioModificato[idx] = false;
+          updateUnsavedBanner();
+          setTimeout(function(){ msg.textContent=''; }, 3000);
+        } else if (res.error && res.error.indexOf('scadut') !== -1) {
+          openReauth(function(){ saveFoglio(); });
+        } else {
+          msg.textContent = res.error || 'Errore salvataggio.'; msg.className = 'saveMsg err';
+        }
+      });
+    }
+
+    function openReauth(retryFn) {
+      pendingAction = retryFn;
+      document.getElementById('reauthError').textContent = '';
+      document.getElementById('reauthInput').value = '';
+      document.getElementById('reauthOverlay').style.display = 'flex';
+      setTimeout(function(){ document.getElementById('reauthInput').focus(); }, 50);
+    }
+    function submitReauth() {
+      const code = document.getElementById('reauthInput').value.trim();
+      const err = document.getElementById('reauthError');
+      if (!/^[0-9]{6}$/.test(code)) { err.textContent = 'Inserisci 6 cifre.'; return; }
+      callApi('verifyOtpAndLoad', [code]).then(function(res){
+        if (res.ok) {
+          sessionToken = res.sessionToken;
+          document.getElementById('reauthOverlay').style.display = 'none';
+          if (pendingAction) { const fn = pendingAction; pendingAction = null; fn(); }
+        } else {
+          err.textContent = res.error || 'Codice errato.';
+        }
+      });
+    }
+
+    // ---------------------------------------------------------------------
+    // Stampa (grassetto preservato, sfondo sempre bianco/testo nero)
+    // ---------------------------------------------------------------------
+    function buildPrintHtml(f) {
+      let html = '<h2>' + escapeAttr(f.nome) + '</h2><table><thead><tr>';
+      f.headers.forEach(function(h){ html += '<th>' + escapeAttr(h) + '</th>'; });
+      html += '</tr></thead><tbody>';
+      f.rows.forEach(function(row){
+        html += '<tr>';
+        f.headers.forEach(function(_, c){
+          const cell = row[c] || wrapCell('');
+          const style = cell.b ? ' style="font-weight:700;"' : '';
+          html += '<td' + style + '>' + escapeAttr(cell.v || '') + '</td>';
+        });
+        html += '</tr>';
+      });
+      html += '</tbody></table>';
+      return html;
+    }
+    function printFoglio() {
+      document.getElementById('printArea').innerHTML = buildPrintHtml(fogli[activeTab]);
+      window.print();
+    }
+    function printAll() {
+      let html = '';
+      fogli.forEach(function(f){ html += buildPrintHtml(f) + '<div style="page-break-after:always;"></div>'; });
+      document.getElementById('printArea').innerHTML = html;
+      window.print();
+    }
+
+    function lockNow() {
+      if (haModificheNonSalvate()) {
+        if (!confirm('Hai modifiche non salvate che andranno perse. Richiudere comunque?')) return;
+      }
+      sessionToken = null;
+      fogli = [];
+      foglioModificato = [];
+      historyUndo = [];
+      historyRedo = [];
+      activeTab = 0;
+      // Torna al login senza reload: niente dipendenza dal comportamento del
+      // browser su beforeunload/reload (su alcune combinazioni file:// + mobile
+      // il reload poteva non essere visibile).
+      document.getElementById('app').style.display = 'none';
+      document.getElementById('loginBox').style.display = '';
+      const otp = document.getElementById('otpInput');
+      otp.value = '';
+      document.getElementById('loginError').textContent = '';
+      otp.focus();
+    }
+  </script>
+</body>
+</html>
