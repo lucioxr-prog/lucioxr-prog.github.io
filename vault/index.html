@@ -56,25 +56,57 @@
     #app.wrap{
       display:none; flex-direction:column; height:100vh; height:100dvh; overflow:hidden; box-sizing:border-box;
     }
-    .topbar{display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex:0 0 auto;}
-    #app > #unsavedBanner, #app > .tabs{flex:0 0 auto;}
-    .toolbar{display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap; align-items:center; flex:0 0 auto;}
-    .toolbar .spacer{flex:1;}
-    .tabs{display:flex; gap:4px; margin-bottom:0; border-bottom:2px solid var(--border); flex-wrap:wrap;}
-    .tab{
-      display:flex; align-items:center; gap:6px;
-      padding:8px 10px 8px 14px; cursor:pointer; border-radius:6px 6px 0 0; font-size:13px;
-      background:var(--panel-2); color:var(--text-dim);
+    /* Header compatto: una barra unica (sostituisce topbar + tabs + toolbar) */
+    .compactbar{
+      position:sticky; top:0; z-index:10; display:flex; align-items:center; gap:6px;
+      height:52px; min-height:52px; flex:0 0 auto; background:var(--panel);
+      border:1px solid var(--border); border-radius:8px; padding:0 8px; margin-bottom:8px;
     }
-    .tab.active{background:var(--panel); color:var(--accent); font-weight:600; border:1px solid var(--border); border-bottom:none;}
-    .tab-action{font-size:12px; color:var(--text-dim); padding:0 3px; cursor:pointer; line-height:1;}
-    .tab-action:hover{color:var(--danger);}
-    .tab.tab-add{background:transparent; color:var(--accent); border:1px dashed var(--border); padding:8px 14px;}
-    .tab.tab-add:hover{background:rgba(91,155,213,.10);}
+    .cb-left{position:relative; flex:0 1 auto; min-width:0;}
+    .cb-mid{display:flex; gap:2px; flex:0 0 auto;}
+    .cb-right{position:relative; display:flex; align-items:center; gap:6px; margin-left:auto; flex:0 0 auto;}
+    .cb-sheet{
+      display:flex; align-items:center; gap:6px; max-width:150px; background:var(--panel-2);
+      border:1px solid var(--border); color:var(--text); font-size:13px; font-weight:700;
+      border-radius:8px; padding:7px 10px; cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    }
+    .cb-sheet .caret{color:var(--text-dim); font-size:10px; flex:0 0 auto;}
+    .cb-icon{
+      width:34px; height:34px; display:flex; align-items:center; justify-content:center;
+      background:var(--panel-2); border:1px solid var(--border); color:var(--text-dim);
+      border-radius:8px; cursor:pointer; font-size:15px; padding:0;
+    }
+    .cb-icon:hover{color:var(--accent); border-color:var(--accent);}
+    .cb-icon:disabled{opacity:.35; cursor:not-allowed;}
+    .cb-icon.cb-danger{color:var(--danger); border-color:transparent; background:rgba(224,97,90,.12);}
+    .cb-icon.cb-danger:hover{background:rgba(224,97,90,.22); border-color:var(--danger);}
+    .cb-save{
+      display:flex; align-items:center; gap:6px; background:var(--success); color:#0c1116;
+      border:none; border-radius:8px; padding:0 14px; height:34px; font-size:13px; font-weight:700; cursor:pointer; white-space:nowrap;
+    }
+    .cb-save:hover{filter:brightness(1.08);}
+    .sheet-menu, .more-menu{
+      display:none; position:absolute; top:calc(100% + 6px); left:0; z-index:20; min-width:220px;
+      background:var(--panel); border:1px solid var(--border); border-radius:8px;
+      box-shadow:0 10px 28px rgba(0,0,0,.5); overflow:hidden;
+    }
+    .more-menu{left:auto; right:0;}
+    .sheet-menu.show, .more-menu.show{display:block;}
+    .sheet-item, .menu-item{
+      display:flex; align-items:center; gap:8px; padding:10px 12px; font-size:13px; color:var(--text);
+      cursor:pointer;
+    }
+    .sheet-item:hover, .menu-item:hover{background:var(--panel-2); color:var(--accent);}
+    .sheet-item.active{color:var(--accent); font-weight:700;}
+    .sheet-item .sheet-name{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+    .sheet-item .tab-action{font-size:12px; color:var(--text-dim); padding:2px 4px; cursor:pointer;}
+    .sheet-item .tab-action:hover{color:var(--danger);}
+    .sheet-menu .menu-sep{border-top:1px solid var(--border); margin:4px 0;}
+    .sheet-menu .menu-item.add{color:var(--accent);}
 
     .panel{
-      background:var(--panel); border:1px solid var(--border); border-top:none; padding:18px;
-      border-radius:0 0 8px 8px; flex:1 1 auto; display:flex; flex-direction:column; min-height:0; overflow:hidden;
+      background:var(--panel); border:1px solid var(--border); padding:18px;
+      border-radius:8px; flex:1 1 auto; display:flex; flex-direction:column; min-height:0; overflow:hidden;
     }
     table.grid{border-collapse:collapse; min-width:100%; table-layout:fixed; font-size:13px;}
     table.grid th, table.grid td{border:1px solid var(--border); padding:0; vertical-align:top; overflow:hidden;}
@@ -185,12 +217,23 @@
   </div>
 
   <div id="app" class="wrap">
-    <div class="topbar">
-      <div>
-        <h1>Vault SintesiDigitale</h1>
-        <div class="sub">Sessione attiva - i dati restano cifrati su Drive, decifrati solo qui.</div>
+    <div id="compactBar" class="compactbar">
+      <div class="cb-left">
+        <button id="sheetBtn" class="cb-sheet" onclick="toggleSheetMenu(event)" title="Cambia foglio">
+          <span id="sheetBtnLabel">Foglio</span><span class="caret">&#9662;</span>
+        </button>
+        <div id="sheetMenu" class="sheet-menu" onclick="event.stopPropagation()"></div>
       </div>
-      <button class="btn danger small" onclick="lockNow()" title="Chiudi la sessione e torna al login">Esci</button>
+      <div class="cb-mid">
+        <button class="cb-icon" id="undoBtn" onclick="undo()" title="Annulla ultima modifica">&#8634;</button>
+        <button class="cb-icon" id="redoBtn" onclick="redo()" title="Ripeti modifica annullata">&#8635;</button>
+      </div>
+      <div class="cb-right">
+        <button class="cb-icon" id="moreBtn" onclick="toggleMoreMenu(event)" title="Altre azioni">&#8942;</button>
+        <div id="moreMenu" class="more-menu" onclick="event.stopPropagation()"></div>
+        <button class="cb-save" onclick="saveFoglio()" title="Salva modifiche">&#128190; Salva</button>
+        <button class="cb-icon cb-danger" onclick="lockNow()" title="Chiudi la sessione e torna al login">&#9211;</button>
+      </div>
     </div>
 
     <div id="unsavedBanner">
@@ -199,19 +242,7 @@
       <button class="btn small" onclick="saveFoglio()">Salva ora</button>
     </div>
 
-    <div class="tabs" id="tabsBar"></div>
     <div class="panel">
-      <div class="toolbar">
-        <button class="btn secondary small" id="undoBtn" onclick="undo()" title="Annulla ultima modifica">&#9664; Annulla</button>
-        <button class="btn secondary small" id="redoBtn" onclick="redo()" title="Ripeti modifica annullata">Ripeti &#9654;</button>
-        <button class="btn secondary small" onclick="addRow()">+ Riga</button>
-        <button class="btn secondary small" onclick="addColumn()">+ Colonna</button>
-        <button class="btn secondary small" onclick="openImport()">Importa da Excel</button>
-        <span class="spacer"></span>
-        <button class="btn secondary small" onclick="printFoglio()">Stampa questo foglio</button>
-        <button class="btn secondary small" onclick="printAll()">Stampa tutti i fogli</button>
-        <button class="btn small" onclick="saveFoglio()">Salva modifiche</button>
-      </div>
       <div id="tableHost"></div>
       <div class="actions-row">
         <span id="saveMsg" class="saveMsg"></span>
@@ -379,41 +410,94 @@
     });
 
     function renderTabs() {
-      const bar = document.getElementById('tabsBar');
-      bar.innerHTML = '';
-      fogli.forEach(function(f, idx){
-        const tab = document.createElement('div');
-        tab.className = 'tab' + (idx === activeTab ? ' active' : '');
+      const label = document.getElementById('sheetBtnLabel');
+      if (fogli[activeTab]) label.textContent = fogli[activeTab].nome;
+      renderSheetMenu();
+    }
 
-        const label = document.createElement('span');
-        label.textContent = f.nome;
-        label.onclick = function(){ activeTab = idx; renderTabs(); renderTable(); updateUndoRedoButtons(); };
-        tab.appendChild(label);
+    function renderSheetMenu() {
+      const menu = document.getElementById('sheetMenu');
+      menu.innerHTML = '';
+      fogli.forEach(function(f, idx){
+        const item = document.createElement('div');
+        item.className = 'sheet-item' + (idx === activeTab ? ' active' : '');
+
+        const name = document.createElement('span');
+        name.className = 'sheet-name';
+        name.textContent = f.nome;
+        name.onclick = function(){ activeTab = idx; closeAllDropdowns(); renderTabs(); renderTable(); updateUndoRedoButtons(); };
+        item.appendChild(name);
 
         const renameBtn = document.createElement('span');
         renameBtn.className = 'tab-action';
         renameBtn.textContent = '\u270E';
         renameBtn.title = 'Rinomina foglio';
-        renameBtn.onclick = function(e){ e.stopPropagation(); rinominaFoglioUI(idx); };
-        tab.appendChild(renameBtn);
+        renameBtn.onclick = function(e){ e.stopPropagation(); closeAllDropdowns(); rinominaFoglioUI(idx); };
+        item.appendChild(renameBtn);
 
         if (fogli.length > 1) {
           const delBtn = document.createElement('span');
           delBtn.className = 'tab-action';
           delBtn.textContent = '\u00D7';
           delBtn.title = 'Elimina foglio';
-          delBtn.onclick = function(e){ e.stopPropagation(); eliminaFoglioUI(idx); };
-          tab.appendChild(delBtn);
+          delBtn.onclick = function(e){ e.stopPropagation(); closeAllDropdowns(); eliminaFoglioUI(idx); };
+          item.appendChild(delBtn);
         }
-        bar.appendChild(tab);
+        menu.appendChild(item);
       });
 
-      const addTab = document.createElement('div');
-      addTab.className = 'tab tab-add';
-      addTab.textContent = '+ Nuovo foglio';
-      addTab.onclick = aggiungiFoglioUI;
-      bar.appendChild(addTab);
+      const sep = document.createElement('div');
+      sep.className = 'menu-sep';
+      menu.appendChild(sep);
+
+      const addItem = document.createElement('div');
+      addItem.className = 'menu-item add';
+      addItem.textContent = '+ Nuovo foglio';
+      addItem.onclick = function(){ closeAllDropdowns(); aggiungiFoglioUI(); };
+      menu.appendChild(addItem);
     }
+
+    function renderMoreMenu() {
+      const menu = document.getElementById('moreMenu');
+      if (menu.dataset.built) return;
+      menu.dataset.built = '1';
+      const items = [
+        { label: '+ Riga', action: addRow },
+        { label: '+ Colonna', action: addColumn },
+        { label: 'Importa da Excel', action: openImport },
+        { label: 'Stampa questo foglio', action: printFoglio },
+        { label: 'Stampa tutti i fogli', action: printAll }
+      ];
+      items.forEach(function(it){
+        const div = document.createElement('div');
+        div.className = 'menu-item';
+        div.textContent = it.label;
+        div.onclick = function(){ closeAllDropdowns(); it.action(); };
+        menu.appendChild(div);
+      });
+    }
+
+    function toggleSheetMenu(e) {
+      e.stopPropagation();
+      const menu = document.getElementById('sheetMenu');
+      const wasOpen = menu.classList.contains('show');
+      closeAllDropdowns();
+      if (!wasOpen) menu.classList.add('show');
+    }
+    function toggleMoreMenu(e) {
+      e.stopPropagation();
+      renderMoreMenu();
+      const menu = document.getElementById('moreMenu');
+      const wasOpen = menu.classList.contains('show');
+      closeAllDropdowns();
+      if (!wasOpen) menu.classList.add('show');
+    }
+    function closeAllDropdowns() {
+      document.getElementById('sheetMenu').classList.remove('show');
+      document.getElementById('moreMenu').classList.remove('show');
+    }
+    document.addEventListener('click', closeAllDropdowns);
+    document.addEventListener('scroll', closeAllDropdowns, true);
 
     function rinominaFoglioUI(idx) {
       const nuovo = prompt('Nuovo nome per "' + fogli[idx].nome + '":', fogli[idx].nome);
