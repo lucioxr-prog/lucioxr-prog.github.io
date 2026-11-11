@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Drone Flight Simulation</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+
+    body {
+      background: #0f172a;
+      color: #f8fafc;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+
+
+    /* Container della vista Drone / HUD */
+    .viewport {
+      position: relative;
+      width: 100%;
+      max-width: 900px;
+      height: 506px; /* Aspect ratio 16:9 */
+      background: radial-gradient(circle at center, #1e293b 0%, #020617 100%);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+      border: 1px solid #334155;
+    }
+
+
+    /* Canvas 3D per l'animazione */
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+
+    /* Overlay FPV / HUD */
+    .hud-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      box-sizing: border-box;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      font-family: monospace;
+      font-size: 14px;
+      color: #00ffcc;
+      text-shadow: 0 0 5px rgba(0, 255, 204, 0.6);
+    }
+
+
+    .hud-header, .hud-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+
+    .hud-status {
+      display: flex;
+      gap: 15px;
+      align-items: center;
+    }
+
+
+    .rec-dot {
+      width: 10px;
+      height: 10px;
+      background-color: #ef4444;
+      border-radius: 50%;
+      display: inline-block;
+      animation: blink 1s infinite;
+    }
+
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.2; }
+    }
+
+
+    /* Mirino centrale FPV */
+    .crosshair {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 40px;
+      height: 40px;
+      border: 1px solid rgba(0, 255, 204, 0.4);
+      border-radius: 50%;
+      pointer-events: none;
+    }
+
+
+    .crosshair::before, .crosshair::after {
+      content: '';
+      position: absolute;
+      background: #00ffcc;
+    }
+
+
+    .crosshair::before {
+      top: 19px;
+      left: -10px;
+      width: 60px;
+      height: 2px;
+    }
+
+
+    .crosshair::after {
+      top: -10px;
+      left: 19px;
+      width: 2px;
+      height: 60px;
+    }
+
+
+    /* Controlli UI */
+    .controls-panel {
+      margin-top: 20px;
+      display: flex;
+      gap: 12px;
+      background: #1e293b;
+      padding: 12px 20px;
+      border-radius: 8px;
+      border: 1px solid #334155;
+    }
+
+
+    button {
+      background: #0ea5e9;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+
+    button:hover {
+      background: #0284c7;
+    }
+
+
+    button.secondary {
+      background: #475569;
+    }
+
+
+    button.secondary:hover {
+      background: #334155;
+    }
+  </style>
+</head>
+<body>
+
+
+  <div class="viewport">
+    <canvas id="droneCanvas"></canvas>
+    
+    <!-- Visual HUD Overlay -->
+    <div class="hud-overlay">
+      <div class="hud-header">
+        <div class="hud-status">
+          <span class="rec-dot"></span>
+          <span>REC 00:01:24</span>
+        </div>
+        <div>4K 60FPS</div>
+        <div>BAT: 84%</div>
+      </div>
+
+
+      <div class="crosshair"></div>
+
+
+      <div class="hud-footer">
+        <div>ALT: <span id="altVal">15.4</span> m</div>
+        <div>SPD: <span id="spdVal">24.2</span> km/h</div>
+        <div>MODE: <span id="modeVal">AUTO ORBIT</span></div>
+      </div>
+    </div>
+  </div>
+
+
+  <div class="controls-panel">
+    <button id="btnOrbit">Orbit</button>
+    <button id="btnFigure8">Figura ad 8</button>
+    <button id="btnHover" class="secondary">Hovering (Pausa)</button>
+  </div>
+
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script>
+    // 1. Setup Scena, Camera e Renderer
+    const container = document.querySelector('.viewport');
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.FogExp2(0x0f172a, 0.015);
+
+
+    const camera = new THREE.PerspectiveCamera(60, container.clientWidth / container.clientHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('droneCanvas'), antialias: true });
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.shadowMap.enabled = true;
+
+
+    // 2. Luci
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+    scene.add(ambientLight);
+
+
+    const dirLight = new THREE.DirectionalLight(0x38bdf8, 0.8);
+    dirLight.position.set(20, 40, 20);
+    dirLight.castShadow = true;
+    scene.add(dirLight);
+
+
+    // 3. Terreno e Griglia di sfondo
+    const gridHelper = new THREE.GridHelper(200, 50, 0x00ffcc, 0x1e293b);
+    gridHelper.position.y = -5;
+    scene.add(gridHelper);
+
+
+    // Elemento target al centro (Edificio/Oggetto osservato)
+    const targetGeo = new THREE.BoxGeometry(4, 10, 4);
+    const targetMat = new THREE.MeshStandardMaterial({ color: 0x334155, wireframe: false });
+    const targetBuilding = new THREE.Mesh(targetGeo, targetMat);
+    targetBuilding.position.set(0, 0, 0);
+    scene.add(targetBuilding);
+
+
+    // 4. Modellazione Semplice del Drone (Pivot principale)
+    const drone = new THREE.Group();
+    scene.add(drone);
+
+
+    // Corpo Drone
+    const bodyGeo = new THREE.BoxGeometry(1.2, 0.3, 1.2);
+    const bodyMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8 });
+    const droneBody = new THREE.Mesh(bodyGeo, bodyMat);
+    drone.add(droneBody);
+
+
+    // Eliche (4 rotori)
+    const propGeo = new THREE.CylinderGeometry(0.4, 0.4, 0.05, 16);
+    const propMat = new THREE.MeshBasicMaterial({ color: 0x00ffcc, transparent: true, opacity: 0.6 });
+    const propellers = [];
+
+
+    const propPositions = [
+      [-0.8, 0.2, -0.8],
+      [0.8, 0.2, -0.8],
+      [-0.8, 0.2, 0.8],
+      [0.8, 0.2, 0.8]
+    ];
+
+
+    propPositions.forEach(pos => {
+      const prop = new THREE.Mesh(propGeo, propMat);
+      prop.position.set(...pos);
+      drone.add(prop);
+      propellers.push(prop);
+    });
+
+
+    // 5. Animazione e Movimenti Drone
+    let mode = 'ORBIT'; // ORBIT, FIGURE8, HOVER
+    let clock = new THREE.Clock();
+
+
+    function updateDroneFlight() {
+      const elapsedTime = clock.getElapsedTime();
+      
+      // Rotazione Eliche
+      propellers.forEach(prop => prop.rotation.y += 0.4);
+
+
+      // Traiettorie di volo
+      let x = 0, y = 5, z = 0;
+      let targetX = 0, targetZ = 0;
+
+
+      if (mode === 'ORBIT') {
+        const radius = 18;
+        const speed = 0.8;
+        x = Math.cos(elapsedTime * speed) * radius;
+        z = Math.sin(elapsedTime * speed) * radius;
+        y = 6 + Math.sin(elapsedTime * 1.5) * 1.5; // oscillazione verticale
+      } else if (mode === 'FIGURE8') {
+        const scale = 15;
+        const speed = 0.6;
+        x = Math.sin(elapsedTime * speed) * scale;
+        z = Math.sin(elapsedTime * speed * 2) * (scale / 2);
+        y = 7 + Math.cos(elapsedTime) * 2;
+      } else if (mode === 'HOVER') {
+        x = 0;
+        z = 15;
+        y = 5 + Math.sin(elapsedTime * 2) * 0.3; // micro-oscillazioni hovering
+      }
+
+
+      // Applica posizioni con effetto fluido
+      drone.position.x += (x - drone.position.x) * 0.05;
+      drone.position.y += (y - drone.position.y) * 0.05;
+      drone.position.z += (z - drone.position.z) * 0.05;
+
+
+      // Inclinazione realistica del drone (Bank/Pitch) durante la virata
+      const dx = x - drone.position.x;
+      const dz = z - drone.position.z;
+      drone.rotation.z = -dx * 0.1;
+      drone.rotation.x = dz * 0.1;
+
+
+      // Telecamera FPV segue il drone o guarda dal drone
+      // Impostiamo la telecamera FPV leggermente dietro il drone
+      const camOffset = new THREE.Vector3(0, 1.2, 3);
+      camOffset.applyQuaternion(drone.quaternion);
+      camera.position.copy(drone.position).add(camOffset);
+      camera.lookAt(targetBuilding.position);
+
+
+      // Aggiorna Telemetria HUD
+      document.getElementById('altVal').innerText = (drone.position.y * 2.5).toFixed(1);
+      document.getElementById('spdVal').innerText = (Math.abs(dx + dz) * 20 + 5).toFixed(1);
+    }
+
+
+    // Render Loop
+    function animate() {
+      requestAnimationFrame(animate);
+      updateDroneFlight();
+      renderer.render(scene, camera);
+    }
+    animate();
+
+
+    // Gestione Eventi UI
+    document.getElementById('btnOrbit').addEventListener('click', () => {
+      mode = 'ORBIT';
+      document.getElementById('modeVal').innerText = 'AUTO ORBIT';
+    });
+    document.getElementById('btnFigure8').addEventListener('click', () => {
+      mode = 'FIGURE8';
+      document.getElementById('modeVal').innerText = 'FIGURE 8';
+    });
+    document.getElementById('btnHover').addEventListener('click', () => {
+      mode = 'HOVER';
+      document.getElementById('modeVal').innerText = 'HOVERING';
+    });
+
+
+    // Riscalamento Finestra
+    window.addEventListener('resize', () => {
+      const width = container.clientWidth;
+      const height = container.clientHeight;
+      renderer.setSize(width, height);
+      camera.aspect = width / height;
+      camera.updateProjectionMatrix();
+    });
+  </script>
+</body>
+</html>
